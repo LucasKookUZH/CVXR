@@ -203,6 +203,15 @@ setMethod("+", signature(e1 = "Maximize", e2 = "Minimize"), function(e1, e2) { s
 .SolverStats <- setClass("SolverStats", representation(solver_name = "character", solve_time = "numeric", setup_time = "numeric", num_iters = "numeric"),
                          prototype(solver_name = NA_character_, solve_time = NA_real_, setup_time = NA_real_, num_iters = NA_real_))
 
+#'
+#' The solver_cache class.
+#' 
+#' This is an R6 class designed to be one of the attributes of the Problem class.
+#'
+SolverCache <- R6Class("SolverCache", list(
+  cache = list()
+))
+
 #' @param results_dict A list containing the results returned by the solver.
 #' @param solver_name The name of the solver.
 #' @return A list containing
@@ -347,8 +356,8 @@ setClassUnion("SolutionORList", c("Solution", "list"))
 #' @name Problem-class
 #' @aliases Problem
 #' @rdname Problem-class
-.Problem <- setClass("Problem", representation(objective = "Objective", constraints = "list", variables = "list", value = "numeric", status = "character", solution = "ANY", .intermediate_chain = "ANY", .solving_chain = "ANY", .cached_chain_key = "list", .separable_problems = "list", .size_metrics = "SizeMetricsORNULL", .solver_stats = "list", args = "list", .solver_cache = "list", .intermediate_problem = "ANY", .intermediate_inverse_data = "ANY"),
-                    prototype(constraints = list(), value = NA_real_, status = NA_character_, solution = NULL, .intermediate_chain = NULL, .solving_chain = NULL, .cached_chain_key = list(), .separable_problems = list(), .size_metrics = NULL, .solver_stats = NULL, args = list(), .solver_cache = list(), .intermediate_problem = NULL, .intermediate_inverse_data = NULL),
+.Problem <- setClass("Problem", representation(objective = "Objective", constraints = "list", variables = "list", value = "numeric", status = "character", solution = "ANY", .intermediate_chain = "ANY", .solving_chain = "ANY", .cached_chain_key = "list", .separable_problems = "list", .size_metrics = "SizeMetricsORNULL", .solver_stats = "list", args = "list", .solver_cache = "SolverCache", .intermediate_problem = "ANY", .intermediate_inverse_data = "ANY"),
+                    prototype(constraints = list(), value = NA_real_, status = NA_character_, solution = NULL, .intermediate_chain = NULL, .solving_chain = NULL, .cached_chain_key = list(), .separable_problems = list(), .size_metrics = NULL, .solver_stats = NULL, args = list(), .solver_cache = NULL, .intermediate_problem = NULL, .intermediate_inverse_data = NULL),
                     validity = function(object) {
                       if(!(class(object@objective) %in% c("Minimize", "Maximize")))
                         stop("[Problem: objective] objective must be Minimize or Maximize")
@@ -392,7 +401,7 @@ Problem <- function(objective, constraints = list()) {
 # Used by pool.map to send solve result back. Unsure if this is necessary for multithreaded operation in R.
 SolveResult <- function(opt_value, status, primal_values, dual_values) { list(opt_value = opt_value, status = status, primal_values = primal_values, dual_values = dual_values, class = "SolveResult") }
 
-setMethod("initialize", "Problem", function(.Object, ..., objective, constraints = list(), variables, value = NA_real_, status = NA_character_, solution = NULL, .intermediate_chain = NULL, .solving_chain = NULL, .cached_chain_key = list(), .separable_problems = list(), .size_metrics = SizeMetrics(), .solver_stats = list(), args = list(), .solver_cache = list(), .intermediate_problem = NULL, .intermediate_inverse_data = NULL) {
+setMethod("initialize", "Problem", function(.Object, ..., objective, constraints = list(), variables, value = NA_real_, status = NA_character_, solution = NULL, .intermediate_chain = NULL, .solving_chain = NULL, .cached_chain_key = list(), .separable_problems = list(), .size_metrics = SizeMetrics(), .solver_stats = list(), args = list(), .solver_cache = SolverCache$new(), .intermediate_problem = NULL, .intermediate_inverse_data = NULL) {
   .Object@objective <- objective
   .Object@constraints <- constraints
   .Object@variables <- Problem.build_variables(.Object)
@@ -419,7 +428,7 @@ setMethod("initialize", "Problem", function(.Object, ..., objective, constraints
   .Object@args <- list(.Object@objective, .Object@constraints)
 
   # Cache for warm start.
-  .Object@.solver_cache <- list()
+  .Object@.solver_cache <- SolverCache$new()
   .Object
 })
 

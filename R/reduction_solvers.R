@@ -139,7 +139,7 @@ setMethod("is_installed", "ConstantSolver", function(solver) { TRUE })
 #' @param solver_opts A list of Solver specific options
 #' @param solver_cache Cache for the solver.
 #' @describeIn ConstantSolver Solve a problem represented by data returned from apply.
-setMethod("solve_via_data", "ConstantSolver", function(object, data, warm_start, verbose, feastol, reltol, abstol, num_iter, solver_opts, solver_cache = list()) {
+setMethod("solve_via_data", "ConstantSolver", function(object, data, warm_start, verbose, feastol, reltol, abstol, num_iter, solver_opts, solver_cache = SolverCache$new()) {
   return(reduction_solve(object, data, warm_start, verbose, feastol, reltol, abstol, num_iter, solver_opts))
 })
 
