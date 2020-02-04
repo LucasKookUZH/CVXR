@@ -232,7 +232,7 @@ setMethod("invert", signature(object = "CPLEX_QP", solution = "list", inverse_da
 #' @param solver_opts A list of Solver specific options
 #' @param solver_cache Cache for the solver.
 #' @describeIn CPLEX_QP Solve a problem represented by data returned from apply.
-setMethod("solve_via_data", "CPLEX_QP", function(object, data, warm_start, verbose, feastol, reltol, abstol, num_iter, solver_opts, solver_cache = list()) {
+setMethod("solve_via_data", "CPLEX_QP", function(object, data, warm_start, verbose, feastol, reltol, abstol, num_iter, solver_opts, solver_cache = .SolverCache$new()) {
 
   #P <- Matrix(data[[P_KEY]], byrow = TRUE, sparse = TRUE)
   P <- data[[P_KEY]]
@@ -686,7 +686,7 @@ setMethod("invert", signature(object = "OSQP", solution = "list", inverse_data =
 #' @param solver_opts A list of Solver specific options
 #' @param solver_cache Cache for the solver.
 #' @describeIn OSQP Solve a problem represented by data returned from apply.
-setMethod("solve_via_data", "OSQP", function(object, data, warm_start, verbose, feastol, reltol, abstol, num_iter, solver_opts, solver_cache = SolverCache$new()) {
+setMethod("solve_via_data", "OSQP", function(object, data, warm_start, verbose, feastol, reltol, abstol, num_iter, solver_opts, solver_cache = .SolverCache$new()) {
   P <- data[[P_KEY]]
   q <- data[[Q_KEY]]
   A <- Matrix(do.call(rbind, list(data[[A_KEY]], data[[F_KEY]])), sparse = TRUE)

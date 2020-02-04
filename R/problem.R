@@ -203,15 +203,6 @@ setMethod("+", signature(e1 = "Maximize", e2 = "Minimize"), function(e1, e2) { s
 .SolverStats <- setClass("SolverStats", representation(solver_name = "character", solve_time = "numeric", setup_time = "numeric", num_iters = "numeric"),
                          prototype(solver_name = NA_character_, solve_time = NA_real_, setup_time = NA_real_, num_iters = NA_real_))
 
-#'
-#' The solver_cache class.
-#' 
-#' This is an R6 class designed to be one of the attributes of the Problem class.
-#'
-SolverCache <- R6Class("SolverCache", list(
-  cache = list()
-))
-
 #' @param results_dict A list containing the results returned by the solver.
 #' @param solver_name The name of the solver.
 #' @return A list containing
@@ -239,6 +230,18 @@ SolverStats <- function(results_dict = list(), solver_name = NA_character_) {
     return(solver_stats)
     ## .SolverStats(solver_name = solver_name, solve_time = solve_time, setup_time = setup_time, num_iters = num_iters)
 }
+
+#'
+#' The solver_cache class.
+#' 
+#' This is an R6 class designed to be one of the attributes of the \linkS4class{Problem} class.
+#' 
+#' @name SolverCache-class
+#' @aliases SolverCache
+#' @rdname SolverCache-class
+.SolverCache <- R6Class("SolverCache", list(
+  cache = list()
+))
 
 #'
 #' The SizeMetrics class.
@@ -381,7 +384,7 @@ setClassUnion("SolutionORList", c("Solution", "list"))
                         stop("[Problem: .solver_stats] .solver_stats is an internal slot and should not be set by user")
                       if(length(object@args) > 0)
                         stop("[Problem: args] args is an internal slot and should not be set by user")
-                      if(length(object@.solver_cache) > 0)
+                      if(length(object@.solver_cache$cache) > 0)
                         stop("[Problem: .solver_cache] .solver_cache is an internal slot and should not be set by user")
                       if(!is.null(object@.intermediate_problem))
                         stop("[Problem: .intermediate_problem] .intermediate_problem is an internal slot and should not be set by user")
@@ -401,7 +404,7 @@ Problem <- function(objective, constraints = list()) {
 # Used by pool.map to send solve result back. Unsure if this is necessary for multithreaded operation in R.
 SolveResult <- function(opt_value, status, primal_values, dual_values) { list(opt_value = opt_value, status = status, primal_values = primal_values, dual_values = dual_values, class = "SolveResult") }
 
-setMethod("initialize", "Problem", function(.Object, ..., objective, constraints = list(), variables, value = NA_real_, status = NA_character_, solution = NULL, .intermediate_chain = NULL, .solving_chain = NULL, .cached_chain_key = list(), .separable_problems = list(), .size_metrics = SizeMetrics(), .solver_stats = list(), args = list(), .solver_cache = SolverCache$new(), .intermediate_problem = NULL, .intermediate_inverse_data = NULL) {
+setMethod("initialize", "Problem", function(.Object, ..., objective, constraints = list(), variables, value = NA_real_, status = NA_character_, solution = NULL, .intermediate_chain = NULL, .solving_chain = NULL, .cached_chain_key = list(), .separable_problems = list(), .size_metrics = SizeMetrics(), .solver_stats = list(), args = list(), .solver_cache = .SolverCache$new(), .intermediate_problem = NULL, .intermediate_inverse_data = NULL) {
   .Object@objective <- objective
   .Object@constraints <- constraints
   .Object@variables <- Problem.build_variables(.Object)
@@ -428,7 +431,7 @@ setMethod("initialize", "Problem", function(.Object, ..., objective, constraints
   .Object@args <- list(.Object@objective, .Object@constraints)
 
   # Cache for warm start.
-  .Object@.solver_cache <- SolverCache$new()
+  .Object@.solver_cache <- .solver_cache
   .Object
 })
 
