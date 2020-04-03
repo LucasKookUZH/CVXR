@@ -1118,7 +1118,7 @@ CVXOPT <- function() { new("CVXOPT") }
 # Solver capabilities.
 #' @describeIn CVXOPT Can the solver handle mixed-integer programs?
 setMethod("mip_capable", "CVXOPT", function(solver) { FALSE })
-setMethod("supported_constraints", "CVXOPT", function(solver) { c(supported_constraints(ConicSolver()), "SOC", "ExpCone", "PSDConstraint") })
+setMethod("supported_constraints", "CVXOPT", function(solver) { c(supported_constraints(ConicSolver()), "SOC", "PSDConstraint") })
 
 # Map of CVXOPT status to CVXR status.
 #' @param solver,object,x A \linkS4class{CVXOPT} object.
@@ -1250,10 +1250,9 @@ setMethod("solve_via_data", "CVXOPT", function(object, data, warm_start, verbose
   dims <- data[[DIMS]]
   zero_dims <- dims@zero
   nonpos_dims <- dims@nonpos
-  exp_dims <- dims@exp
   soc_dims <- dims@soc
   psd_dims <- dims@psd
-  clistLength <- sum(c(nonpos_dims, exp_dims) > 0) + length(soc_dims) + length(psd_dims)
+  clistLength <- (nonpos_dims > 0) + length(soc_dims) + length(psd_dims)
   
   # For all the constraints except the zero constraint
   clist <- vector(mode="list", length = clistLength)
@@ -1266,12 +1265,6 @@ setMethod("solve_via_data", "CVXOPT", function(object, data, warm_start, verbose
                                   h=h[ghCounter:(ghCounter+nonpos_dims-1),])
     clistCounter <- clistCounter + 1
     ghCounter <- ghCounter + nonpos_dims
-  }
-  
-  # Deal with exponential cone constraints
-  if(exp_dims > 0){
-    print("figure out later")
-    clistCounter <- clistCounter + 1
   }
   
   # Deal with SOC constraints
