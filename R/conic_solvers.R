@@ -1127,13 +1127,13 @@ setMethod("supported_constraints", "CVXOPT", function(solver) { c(supported_cons
 setMethod("status_map", "CVXOPT", function(solver, status) {
   if(status == "optimal")
     OPTIMAL
-  else if(status == "infeasible")
+  else if(status == "infeasible" || status == "primal infeasible")
     INFEASIBLE
   else if(status == "unbounded")
     UNBOUNDED
   else if(status == "solver_error")
     SOLVER_ERROR
-  else
+  else 
     stop("CVXOPT status unrecognized: ", status)
 })
 
@@ -1151,6 +1151,7 @@ setMethod("import_solver", "CVXOPT", function(solver) { requireNamespace("cccp",
 setMethod("accepts", signature(object = "CVXOPT", problem = "Problem"), function(object, problem) {
   # Can CVXOPT solver the problem?
   # TODO: Check if the matrix is stuffed.
+  import_solver(object)
   if(!is_affine(problem@objective@args[[1]]))
     return(FALSE)
   for(constr in problem@constraints) {
@@ -1226,7 +1227,6 @@ setMethod("invert", signature(object = "CVXOPT", solution = "list", inverse_data
 #' @describeIn CVXOPT Solve a problem represented by data returned from apply.
 setMethod("solve_via_data", "CVXOPT", function(object, data, warm_start, verbose, feastol, reltol, abstol,
                                                num_iter, solver_opts, solver_cache) {
-  
   #Tweak paramters
   if(is.null(feastol)) {
     feastol <- SOLVER_DEFAULT_PARAM$CVXOPT$feastol
@@ -1238,9 +1238,10 @@ setMethod("solve_via_data", "CVXOPT", function(object, data, warm_start, verbose
     abstol <- SOLVER_DEFAULT_PARAM$CVXOPT$abstol
   }
   if(is.null(num_iter)) {
-    num_iter <- as.integer(SOLVER_DEFAULT_PARAM$CVXOPT$max_iters)
+    num_iter <- SOLVER_DEFAULT_PARAM$CVXOPT$max_iters
   }
-  param <- ctrl(maxiters=num_iter, abstol=abstol, reltol=reltol, feastol=feastol)
+  param <- cccp::ctrl(maxiters=as.integer(num_iter), abstol=abstol, reltol=reltol, 
+                      feastol=feastol, trace=verbose)
   param$params[names(solver_opts)] <- solver_opts
   
   G <- as.matrix(data[[G_KEY]])
@@ -1261,7 +1262,7 @@ setMethod("solve_via_data", "CVXOPT", function(object, data, warm_start, verbose
   
   # Deal with non positive constraints
   if(nonpos_dims > 0){
-    clist[[clistCounter]] <- nnoc(G = G[ghCounter:(ghCounter+nonpos_dims-1),], 
+    clist[[clistCounter]] <- cccp::nnoc(G = G[ghCounter:(ghCounter+nonpos_dims-1),], 
                                   h=h[ghCounter:(ghCounter+nonpos_dims-1),])
     clistCounter <- clistCounter + 1
     ghCounter <- ghCounter + nonpos_dims
@@ -1275,7 +1276,7 @@ setMethod("solve_via_data", "CVXOPT", function(object, data, warm_start, verbose
   
   # Deal with SOC constraints
   for(i in soc_dims){
-    clist[[clistCounter]] <- socc(F=-G[(ghCounter+1):(ghCounter+i-1),], 
+    clist[[clistCounter]] <- cccp::socc(F=-G[(ghCounter+1):(ghCounter+i-1),], 
                                   g=h[(ghCounter+1):(ghCounter+i-1),],
                                   d=-G[ghCounter,], 
                                   f=h[ghCounter,])
@@ -1288,31 +1289,32 @@ setMethod("solve_via_data", "CVXOPT", function(object, data, warm_start, verbose
     Flist <- vector(mode="list", length = nvar+1)
     currG <- G[ghCounter:(ghCounter + i^2-1),]
     currh <- h[ghCounter:(ghCounter + i^2-1),]
-    # Pad with 0's to consider extra variable
-    Flist[[1]] <- rbind(cbind(matrix(currh, nrow = nvar-1), rep(0, nvar-1)), rep(0, nvar))
+    Flist[[1]] <- matrix(currh, nrow = i)
     for(j in 1:nvar){
-      Flist[[j+1]] <- rbind(cbind(matrix(currG[,j], nrow = nvar-1), rep(0, nvar-1)), rep(0, nvar))
+      Flist[[j+1]] <- matrix(currG[,j], nrow = i)
     }
-    clist[[clistCounter]] <- psdc(Flist = Flist[-1], F0 = Flist[[1]])
+    clist[[clistCounter]] <- cccp::psdc(Flist = Flist[-1], F0 = Flist[[1]])
     clistCounter <- clistCounter + 1
     ghCounter <- ghCounter + i
   }
   
   if(zero_dims > 0){
-    results <- cccp(q=data[[C_KEY]], 
+    results <- cccp::cccp(q=data[[C_KEY]], 
                     A=as.matrix(data[[A_KEY]]), 
                     b=as.matrix(data[[B_KEY]]), 
-                    cList=clist)  
+                    cList=clist,
+                    optctrl=param)  
   } else {
-    results <- cccp(q=data[[C_KEY]],
-                    cList=clist)
+    results <- cccp::cccp(q=data[[C_KEY]],
+                    cList=clist,
+                    optctrl=param)
   }
   solution <- list()
   solution$status <- status_map(object, results$status)
   solution$value <- (results$state[1] + data[[OFFSET]])[[1]]
-  solution$primal <- getx(results)
-  solution$eq_dual <- gety(results)
-  solution$ineq_dual <- unlist(getz(results))
+  solution$primal <- cccp::getx(results)
+  solution$eq_dual <- cccp::gety(results)
+  solution$ineq_dual <- unlist(cccp::getz(results))
   #solution$ineq_dual <- as.matrix(c(temp[[1]], temp[[2]], temp[[3]], temp[[4]][abs(temp[[4]]) > 1e-8])[1:nrow(G)])
   
   return(solution)
